@@ -27,24 +27,30 @@ jobs:
         role-to-assume: ${{ secrets.AWS_ROLE_ARN }}
         aws-region: ap-south-1
 
-    # 3️⃣ Terraform Init
+    # 3️⃣ Install Terraform ✅ FIX
+    - name: Setup Terraform
+      uses: hashicorp/setup-terraform@v3
+      with:
+        terraform_version: 1.5.7
+
+    # 4️⃣ Terraform Init
     - name: Terraform Init
       working-directory: terraform
       run: terraform init
 
-    # 4️⃣ Terraform Apply (EKS CREATED HERE)
+    # 5️⃣ Terraform Apply (EKS CREATED HERE)
     - name: Terraform Apply
       working-directory: terraform
       run: terraform apply -auto-approve
 
-    # 5️⃣ Configure kubectl for EKS
+    # 6️⃣ Configure kubectl for EKS
     - name: Configure kubectl
       run: |
         aws eks update-kubeconfig \
           --name $CLUSTER_NAME \
           --region ap-south-1
 
-    # 6️⃣ Login to ECR
+    # 7️⃣ Login to ECR
     - name: Login to Amazon ECR
       run: |
         aws ecr get-login-password --region ap-south-1 \
@@ -52,7 +58,7 @@ jobs:
           --username AWS \
           --password-stdin ${{ secrets.ECR_URL }}
 
-    # 7️⃣ Ensure ECR repo exists
+    # 8️⃣ Ensure ECR repo exists
     - name: Ensure ECR repository exists
       run: |
         aws ecr describe-repositories \
@@ -60,20 +66,20 @@ jobs:
         || aws ecr create-repository \
           --repository-name $APP_NAME
 
-    # 8️⃣ Build & Push Image
+    # 9️⃣ Build & Push Image
     - name: Build and Push Image
       run: |
         docker build -t $APP_NAME ./app
         docker tag $APP_NAME:latest ${{ secrets.ECR_URL }}/$APP_NAME:latest
         docker push ${{ secrets.ECR_URL }}/$APP_NAME:latest
 
-    # 9️⃣ Inject runtime values
+    # 🔟 Inject runtime values
     - name: Inject values
       run: |
         export IMAGE_URI=${{ secrets.ECR_URL }}/$APP_NAME:latest
         chmod +x scripts/inject.sh
         ./scripts/inject.sh
 
-    # 🔟 Deploy app
+    # 1️⃣1️⃣ Deploy app
     - name: Deploy to Kubernetes
       run: kubectl apply -f k8s/
