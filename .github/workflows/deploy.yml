@@ -15,24 +15,38 @@ jobs:
     env:
       APP_NAME: ${{ github.event.repository.name }}
       DOMAIN_NAME: ${{ secrets.DOMAIN_NAME }}
+      AWS_REGION: ap-south-1
 
     steps:
-    - uses: actions/checkout@v4
+    - name: Checkout repository
+      uses: actions/checkout@v4
 
-    - uses: aws-actions/configure-aws-credentials@v4
+    - name: Configure AWS credentials
+      uses: aws-actions/configure-aws-credentials@v4
       with:
         role-to-assume: ${{ secrets.AWS_ROLE_ARN }}
         aws-region: ap-south-1
 
-    - run: docker build -t $APP_NAME ./app
+    - name: Login to Amazon ECR
+      run: |
+        aws ecr get-login-password --region ap-south-1 \
+        | docker login \
+          --username AWS \
+          --password-stdin ${{ secrets.ECR_URL }}
 
-    - run: |
+    - name: Build Docker image
+      run: docker build -t $APP_NAME ./app
+
+    - name: Push image to ECR
+      run: |
         docker tag $APP_NAME:latest ${{ secrets.ECR_URL }}/$APP_NAME:latest
         docker push ${{ secrets.ECR_URL }}/$APP_NAME:latest
 
-    - run: |
+    - name: Inject deployment values
+      run: |
         export IMAGE_URI=${{ secrets.ECR_URL }}/$APP_NAME:latest
         chmod +x scripts/inject.sh
         ./scripts/inject.sh
 
-    - run: kubectl apply -f k8s/
+    - name: Deploy to Kubernetes
+      run: kubectl apply -f k8s/
