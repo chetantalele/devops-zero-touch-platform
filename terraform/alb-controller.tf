@@ -14,25 +14,24 @@ resource "helm_release" "alb_controller" {
   chart      = "aws-load-balancer-controller"
   namespace  = "kube-system"
 
-  set {
-    name  = "clusterName"
-    value = aws_eks_cluster.cluster.name
-  }
-
-  set {
-    name  = "serviceAccount.create"
-    value = "false"
-  }
-
-  set {
-    name  = "serviceAccount.name"
-    value = kubernetes_service_account.alb_controller.metadata[0].name
-  }
-
-  set {
-    name  = "region"
-    value = "ap-south-1"
-  }
+  set = [
+    {
+      name  = "clusterName"
+      value = aws_eks_cluster.cluster.name
+    },
+    {
+      name  = "serviceAccount.create"
+      value = "false"
+    },
+    {
+      name  = "serviceAccount.name"
+      value = kubernetes_service_account_v1.alb_controller.metadata[0].name
+    },
+    {
+      name  = "region"
+      value = "ap-south-1"
+    }
+  ]
 
   depends_on = [
     aws_eks_node_group.nodes
